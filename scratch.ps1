@@ -23,16 +23,34 @@ function RxZeroOrMore( [string]$s ) {
     return '(?:' + $s + ')*'
 }
 
+function RxOneOrMore( [string] $s ) {
+    return '(?:' +$s + ')+'
+}
+
+
+# placeholders
+$basicString = '#basicString'
+$dottedKey   = '#dottedKey'
+$keyvalSep   = '#keyvalSep'
+$table       = '#table'
+$newLine     = '#newLine'
+$literalString = '#literalString'
+$val         = '#val'
+$simpleKey   = '#simpleKey'
+$dotSep      = '#dotSep'
+
 <#
 ws = *wschar
 wschar =  %x20  ; Space
 wschar =/ %x09  ; Horizontal tab
 #>
-$rxWschar = RxAlternate @(
+$wschar = RxAlternate @(
     '\x20',
     '\x09'
 )
-$rxWs = RxZeroOrMore $rxWschar
+$ws = RxZeroOrMore $wschar
+
+
 
 <#
 comment-start-symbol = %x23 ; #
@@ -41,10 +59,12 @@ non-eol = %x09 / %x20-7F / non-ascii
 
 comment = comment-start-symbol *non-eol
 #>
-$rxCommentStartSymbol = '\x23'
-$rxNonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\uFFFF]')
-$rxNonEol = RxAlternate @('\x09', '[\x20-\x7F]', $rxNonAscii)
-$rxComment = $rxCommentStartSymbol + (RxZeroOrMore $rxNonEol)
+$commentStartSymbol = '\x23'
+$nonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\uFFFF]')
+$nonEol = RxAlternate @('\x09', '[\x20-\x7F]', $nonAscii)
+$comment = $commentStartSymbol + (RxZeroOrMore $nonEol)
+
+
 
 <#
 keyval = key keyval-sep val
@@ -61,7 +81,13 @@ keyval-sep = ws %x3D ws ; =
 
 val = string / boolean / array / inline-table / date-time / float / integer
 #>
-$rxKeyval = $rxKey + $rxKeyvalSep + $rxVal 
+$dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
+$quotedKey = RxAlternate @( $basicString, $literalString )
+$unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F') )
+$simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
+$key = RxAlternate @( $simpleKey, $dottedKey )
+$keyval = $key + $keyvalSep + $val 
+
 
 
 <#
@@ -69,15 +95,17 @@ expression =  ws [ comment ]
 expression =/ ws keyval ws [ comment ]
 expression =/ ws table ws [ comment ]
 #>
-$rxExpression = RxAlternate @(
-    $rxWs + (RxOptional $rxComment),
-    $rxWs + $rxKeyval + $rxWs + (RxOptional $rxComment),
-    $rxWs + $rxTable + $rxWs + (RxOptional $rxComment)
+$expression = RxAlternate @(
+    $ws + (RxOptional $comment),
+    $ws + $keyval + $ws + (RxOptional $comment),
+    $ws + $table + $ws + (RxOptional $comment)
 )
+
+
 
 <#
 toml = expression *( newline expression )
 #>
-$rxToml = $rxExpression + ( RxZeroOrMore $rxNewline + $rxExpression )
-$rxToml
+$toml = $expression + ( RxZeroOrMore ($newLine + $expression) )
+$toml
 
