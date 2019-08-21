@@ -35,7 +35,8 @@ $table       = '#table'
 $newLine     = '#newLine'
 $literalString = '#literalString'
 $val         = '#val'
-$simpleKey   = '#simpleKey'
+
+
 
 <#
 ws = *wschar
