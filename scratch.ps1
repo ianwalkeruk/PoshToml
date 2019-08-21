@@ -30,14 +30,12 @@ function RxOneOrMore( [string] $s ) {
 
 # placeholders
 $basicString = '#basicString'
-$dottedKey   = '#dottedKey'
 $keyvalSep   = '#keyvalSep'
 $table       = '#table'
 $newLine     = '#newLine'
 $literalString = '#literalString'
 $val         = '#val'
 $simpleKey   = '#simpleKey'
-$dotSep      = '#dotSep'
 
 <#
 ws = *wschar
@@ -81,10 +79,11 @@ keyval-sep = ws %x3D ws ; =
 
 val = string / boolean / array / inline-table / date-time / float / integer
 #>
-$dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
+$dotSep    = $ws + '\x2E' + $ws
 $quotedKey = RxAlternate @( $basicString, $literalString )
 $unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F') )
 $simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
+$dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
 $key = RxAlternate @( $simpleKey, $dottedKey )
 $keyval = $key + $keyvalSep + $val 
 
