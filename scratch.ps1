@@ -27,16 +27,14 @@ function RxOneOrMore( [string] $s ) {
     return '(?:' +$s + ')+'
 }
 
+function RxSeparatedList( [string]$s, [string]$sep) {
+    return $s + (RxOneOrMore ($sep + $s))
+}
 
 # placeholders
-$basicString = '#basicString'
-$keyvalSep   = '#keyvalSep'
-$table       = '#table'
-$newLine     = '#newLine'
-$literalString = '#literalString'
-$val         = '#val'
-
-
+$string = 'STRING'
+$boolean = 'BOOLEAN'
+$array = 'ARRAY'
 
 <#
 ws = *wschar
@@ -63,29 +61,61 @@ $nonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\uFFFF]')
 $nonEol = RxAlternate @('\x09', '[\x20-\x7F]', $nonAscii)
 $comment = $commentStartSymbol + (RxZeroOrMore $nonEol)
 
+<#
+key = simple-key / dotted-key
+simple-key = quoted-key / unquoted-key
+unquoted-key = 1*( ALPHA / DIGIT / %x2D / %x5F ) ; A-Z / a-z / 0-9 / - / _
+quoted-key = basic-string / literal-string
+dotted-key = simple-key 1*( dot-sep simple-key )
+dot-sep   = ws %x2E ws  ; . Period
+#>
+$quotedKey = RxAlternate @( $basicString, $literalString )
+$unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F') )
+$simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
+$dotSep    = $ws + '\x2E' + $ws
+$dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
+$key = RxAlternate @( $simpleKey, $dottedKey )
+
+
+
+<#
+table = std-table / array-table
+std-table = std-table-open key std-table-close
+std-table-open  = %x5B ws     ; [ Left square bracket
+std-table-close = ws %x5D     ; ] Right square bracket
+inline-table = inline-table-open [ inline-table-keyvals ] inline-table-close
+inline-table-open  = %x7B ws     ; {
+inline-table-close = ws %x7D     ; }
+inline-table-sep   = ws %x2C ws  ; , Comma
+inline-table-keyvals = key keyval-sep val [ inline-table-sep inline-table-keyvals ]
+array-table = array-table-open key array-table-close
+array-table-open  = %x5B.5B ws  ; [[ Double left square bracket
+array-table-close = ws %x5D.5D  ; ]] Double right square bracket
+#>
+$arrayTableClose = $ws + '\x5D\x5D'
+$arrayTableOpen = '\x5B\x5B' + $ws
+$arrayTable = $arrayTableOpen + $key + $arrayTableClose
+$inlineTableSep = $ws + '\x2C' + $ws
+$inlineTableKeyvals = RxSeparatedList ($key + $keyvalSep + $val) $inlineTableSep
+$inlineTableClose = $ws + '\x7D'
+$inlineTableOpen = '\x7B' + $ws
+$inlineTable = $inlineTableOpen + (RxOptional $inlineTableKeyvals) + $inlineTableClose
+$stdTableClose = $ws + '\x5D'
+$stdTableOpen = '\x5B' + $ws
+$stdTable = $stdTableOpen + $key + $stdTableClose
+$table = RxAlternate @($stdTable, $arrayTable)
+
 
 
 <#
 keyval = key keyval-sep val
 
-key = simple-key / dotted-key
-simple-key = quoted-key / unquoted-key
-
-unquoted-key = 1*( ALPHA / DIGIT / %x2D / %x5F ) ; A-Z / a-z / 0-9 / - / _
-quoted-key = basic-string / literal-string
-dotted-key = simple-key 1*( dot-sep simple-key )
-
-dot-sep   = ws %x2E ws  ; . Period
 keyval-sep = ws %x3D ws ; =
 
 val = string / boolean / array / inline-table / date-time / float / integer
 #>
-$dotSep    = $ws + '\x2E' + $ws
-$quotedKey = RxAlternate @( $basicString, $literalString )
-$unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F') )
-$simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
-$dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
-$key = RxAlternate @( $simpleKey, $dottedKey )
+$val = RxAlternate @( $string, $boolean, $array, $inlineTable, $dateTime, $float, $integer )
+$keyvalSep = $ws + '\x3D' + $ws
 $keyval = $key + $keyvalSep + $val 
 
 
@@ -99,6 +129,44 @@ $expression = RxAlternate @(
     $ws + (RxOptional $comment),
     $ws + $keyval + $ws + (RxOptional $comment),
     $ws + $table + $ws + (RxOptional $comment)
+)
+
+
+
+<#
+table = std-table / array-table
+std-table = std-table-open key std-table-close
+std-table-open  = %x5B ws     ; [ Left square bracket
+std-table-close = ws %x5D     ; ] Right square bracket
+inline-table = inline-table-open [ inline-table-keyvals ] inline-table-close
+inline-table-open  = %x7B ws     ; {
+inline-table-close = ws %x7D     ; }
+inline-table-sep   = ws %x2C ws  ; , Comma
+inline-table-keyvals = key keyval-sep val [ inline-table-sep inline-table-keyvals ]
+array-table = array-table-open key array-table-close
+array-table-open  = %x5B.5B ws  ; [[ Double left square bracket
+array-table-close = ws %x5D.5D  ; ]] Double right square bracket
+#>
+$arrayTableClose = $ws + '\x5D\x5D'
+$arrayTableOpen = '\x5B\x5B' + $ws
+$arrayTable = $arrayTableOpen + $key + $arrayTableClose
+$inlineTableSep = $ws + '\x2C' + $ws
+$inlineTableKeyvals = RxSeparatedList ($key + $keyvalSep + $val) $inlineTableSep
+$inlineTableClose = $ws + '\x7D'
+$inlineTableOpen = '\x7B' + $ws
+$inlineTable = $inlineTableOpen + (RxOptional $inlineTableKeyvals) + $inlineTableClose
+$stdTableClose = $ws + '\x5D'
+$stdTableOpen = '\x5B' + $ws
+$stdTable = $stdTableOpen + $key + $stdTableClose
+$table = RxAlternate @($stdTable, $arrayTable)
+
+<#
+newline =  %x0A     ; LF
+newline =/ %x0D.0A  ; CRLF
+#>
+$newline = RxAlternate @(
+    '\x0A',
+    '\x0D\x0A'
 )
 
 
