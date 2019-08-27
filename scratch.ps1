@@ -57,7 +57,7 @@ non-eol = %x09 / %x20-7F / non-ascii
 comment = comment-start-symbol *non-eol
 #>
 $commentStartSymbol = '\x23'
-$nonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\uFFFF]')
+$nonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\U0010FFFF]')
 $nonEol = RxAlternate @('\x09', '[\x20-\x7F]', $nonAscii)
 $comment = $commentStartSymbol + (RxZeroOrMore $nonEol)
 
@@ -74,6 +74,7 @@ $unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F')
 $simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
 $dotSep    = $ws + '\x2E' + $ws
 $dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
+$simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
 $key = RxAlternate @( $simpleKey, $dottedKey )
 
 
@@ -176,4 +177,4 @@ toml = expression *( newline expression )
 #>
 $toml = $expression + ( RxZeroOrMore ($newLine + $expression) )
 $toml
-
+[regex]::new($toml)
