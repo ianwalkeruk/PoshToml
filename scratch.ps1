@@ -31,10 +31,21 @@ function RxSeparatedList( [string]$s, [string]$sep) {
     return $s + (RxOneOrMore ($sep + $s))
 }
 
-# placeholders
-$string = 'STRING'
-$boolean = 'BOOLEAN'
-$array = 'ARRAY'
+function RxMultiple([int]$m, [string]$s) {
+    return '(?:' + $s + '){' + $m + '}'
+}
+
+
+
+<#
+ALPHA = %x41-5A / %x61-7A ; A-Z / a-z
+DIGIT = %x30-39 ; 0-9
+HEXDIG = DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
+#>
+$ALPHA = '[A-Za-z]'
+$DIGIT = '[0-9]'
+$HEXDIG ='[0-9A-F]'
+
 
 <#
 ws = *wschar
@@ -48,18 +59,86 @@ $wschar = RxAlternate @(
 $ws = RxZeroOrMore $wschar
 
 
+<#
+escape = %x5C                   ; \
+escape-seq-char =  %x22         ; "    quotation mark  U+0022
+escape-seq-char =/ %x5C         ; \    reverse solidus U+005C
+escape-seq-char =/ %x62         ; b    backspace       U+0008
+escape-seq-char =/ %x66         ; f    form feed       U+000C
+escape-seq-char =/ %x6E         ; n    line feed       U+000A
+escape-seq-char =/ %x72         ; r    carriage return U+000D
+escape-seq-char =/ %x74         ; t    tab             U+0009
+escape-seq-char =/ %x75 4HEXDIG ; uXXXX                U+XXXX
+escape-seq-char =/ %x55 8HEXDIG ; UXXXXXXXX            U+XXXXXXXX
+#>
+$escapeSeqChar = RxAlternate @(
+    '\x22',
+    '\x5C',
+    '\x62',
+    '\x66',
+    '\x6E',
+    '\x72',
+    '\x74',
+    '\x75' + (RxMultiple 4 $HEXDIG),
+    '\x55' + (RxMultiple 7 $HEXDIG)
+)
+$escape = '\x5C'
+
+
 
 <#
 comment-start-symbol = %x23 ; #
 non-ascii = %x80-D7FF / %xE000-10FFFF
+    IW - .NET Regex cannot handle higher than \uFFFF
 non-eol = %x09 / %x20-7F / non-ascii
 
 comment = comment-start-symbol *non-eol
 #>
 $commentStartSymbol = '\x23'
-$nonAscii = RxAlternate @('[\x80-\uD7FF]' , '[\uE000-\U0010FFFF]')
+$nonAscii = RxAlternate @('[\u0080-\uDFFF]' , '[\uE000-\uFFFF]')
 $nonEol = RxAlternate @('\x09', '[\x20-\x7F]', $nonAscii)
 $comment = $commentStartSymbol + (RxZeroOrMore $nonEol)
+
+
+
+<#
+basic-char = basic-unescaped / escaped
+basic-unescaped = wschar / %x21 / %x23-5B / %x5D-7E / non-ascii
+escaped = escape escape-seq-char
+#>
+$escaped = $escape + $escapeSeqChar
+$basicUnescaped = RxAlternate @($wschar, '\x21', '[\x23-\x5B]', '[\x5D-\x7E]', $nonAscii)
+$basicChar = RxAlternate @($basicUnescaped, $escaped)
+
+
+
+<#
+string = ml-basic-string / basic-string / ml-literal-string / literal-string
+basic-string = quotation-mark *basic-char quotation-mark
+quotation-mark = %x22            ; "
+#>
+$quotationMark = '\x22'
+$basicString = $quotationMark + (RxZeroOrMore $basicChar) + $quotationMark
+$string = RxAlternate @($mlBasicString, $basicString, $mlLiteralString, $literalString)
+
+
+
+<#
+ml-basic-string = ml-basic-string-delim ml-basic-body ml-basic-string-delim
+ml-basic-string-delim = 3quotation-mark
+ml-basic-body = *( ml-basic-char / newline / ( escape ws newline ) )
+ml-basic-char = ml-basic-unescaped / escaped
+ml-basic-unescaped = wschar / %x21-5B / %x5D-7E / non-ascii
+literal-string = apostrophe *literal-char apostrophe
+apostrophe = %x27 ; ' apostrophe
+literal-char = %x09 / %x20-26 / %x28-7E / non-ascii
+ml-literal-string = ml-literal-string-delim ml-literal-body ml-literal-string-delim
+ml-literal-string-delim = 3apostrophe
+ml-literal-body = *( ml-literal-char / newline )
+ml-literal-char = %x09 / %x20-7E / non-ascii
+#>
+
+
 
 <#
 key = simple-key / dotted-key
@@ -76,6 +155,17 @@ $dotSep    = $ws + '\x2E' + $ws
 $dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
 $simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
 $key = RxAlternate @( $simpleKey, $dottedKey )
+
+
+
+<#
+keyval = key keyval-sep val
+keyval-sep = ws %x3D ws ; =
+val = string / boolean / array / inline-table / date-time / float / integer
+#>
+$val = RxAlternate @( $string, $boolean, $array, $inlineTable, $dateTime, $float, $integer )
+$keyvalSep = $ws + '\x3D' + $ws
+$keyval = $key + $keyvalSep + $val 
 
 
 
@@ -105,19 +195,6 @@ $stdTableClose = $ws + '\x5D'
 $stdTableOpen = '\x5B' + $ws
 $stdTable = $stdTableOpen + $key + $stdTableClose
 $table = RxAlternate @($stdTable, $arrayTable)
-
-
-
-<#
-keyval = key keyval-sep val
-
-keyval-sep = ws %x3D ws ; =
-
-val = string / boolean / array / inline-table / date-time / float / integer
-#>
-$val = RxAlternate @( $string, $boolean, $array, $inlineTable, $dateTime, $float, $integer )
-$keyvalSep = $ws + '\x3D' + $ws
-$keyval = $key + $keyvalSep + $val 
 
 
 
