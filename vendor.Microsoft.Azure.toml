@@ -1,0 +1,11 @@
+# https://azure.microsoft.com/en-us/global-infrastructure/locations/
+[schema.vendor.Microsoft.Azure.Region]
+Key      = "ID"
+ID       = "[lower]"
+Name     = "[localizable]"
+Location = "[geographic.named]"
+
+[vendor.Microsoft.Azure.Region.centralus]
+Name     = "Central US"
+Location = "Iowa"
+

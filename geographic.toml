@@ -1,0 +1,174 @@
+# schema.geographic - places on planet Earth. Extraterrestrial locations are excluded for now
+
+# Note: many parts of this file are contentious and have the potential to cause conflicy or
+#       upset. Where possible, restrict changes/additions to globally accepted norms, and
+#       keep in mind that the aim of Envious is to make configuration files consistent, not
+#       solve world peace or cause world wars. If in douby, add before deleting, and ask before
+#       doing either
+
+# implicit decorator - any class defined in schema.geographic with a Name attrinbute
+#                      transitively becmomes referencable as a [geographic.named]
+[schema.geographic.named]
+Type = "implicit"
+Key  = "Name"
+
+# https://unstats.un.org/unsd/methodology/m49/
+[schema.geographic.m49]
+Key       =  "Code"
+Code      = "[numeric[3]]"
+Name      = "[localizable]"
+Parent    = "[.m49]"
+IsoAlpha3 = "[string[3]]?"
+
+# https://en.wikipedia.org/wiki/Administrative_divisision
+# Note: localName should be chosen to be easily recognised by natives, rather than legally absolutely correct. For instance
+#       while "geographic.administrativeDivision.theUnitedKingdomOfGreatBritainAndNorthernIreland" might be considered
+#       perfect by international lawyers, almost all local citizens would recognize ".unitedKingdom" as the same entity
+#       Again, refer to the preamble that the purpose of this file is ease of configuration, not settling 1000-year-old arguments
+[schema.geographic.administrativeDivision]
+SubKey       = "LocalName"
+LocalName    = "[camel]"
+UNSDRegion   = "[.m49]"
+Name         = "[localizable]"
+DivisionName = "[localizable]"
+
+[geographic.m49.001]
+Name = "{en}World"
+
+[geographic.m49.005]
+Name   = "{en}South America"
+Parent = "419"
+
+[geographic.m49.019]
+Name   = "{en}Americas"
+Parent = "001"
+
+[geographic.m49.021]
+Name   = "{en}Northern America"
+Parent = "019"
+
+[geographic.m49.076]
+Name      = "{en}Brazil"
+Parent    = "005"
+IsoAlpha3 = "BRA"
+
+[geographic.m49.124]
+Name      = "{en}Canada"
+Parent    = "021"
+IsoAlpha3 = "CAN"
+
+[geographic.m49.154]
+Parent = "150"
+Name   = "{en}Northern Europe"
+
+[geographic.m49.155]
+Parent = "150"
+Name   = "{en}Western Europe"
+
+[geographic.m49.419]
+Name   = "{en}Latin America and the Caribbean"
+Parent = "019"
+
+[geographic.m49.372]
+Name   = "{en}Ireland"
+Parent = "154"
+
+[geographic.m49.528]
+Name      = "{en}Netherlands"
+Parent    = "155"
+IsoAlpha3 = "NLD"
+
+[geographic.m49.840]
+Name      = "{en}United States of America"
+Parent    = "021"
+IsoAlpha3 = "USA"
+
+[geographic.administrativeDivision.brasil]
+UNSDRegion   = "076"
+Name         = "{pt}Brasil{en}Brazil"
+DivisionName = "{pt}República Federativa{en}Federative Republic"
+
+[geographic.administrativeDivision.brasil.estadoSaoPaulo]
+Name         = "{pt}São Paulo"
+DivisionName = "{pt}Estado{en}State"
+
+[geographic.administrativeDivision.canada]
+UNSDRegion   = "124"
+Name         = "{en}Canada"
+DivisionName = "{en}Country"
+
+[geographic.administrativeDivision.canada.ontario]
+Name         = "{en}Ontario"
+DivisionName = "{en}Province"
+
+[geographic.administrativeDivision.canada.ontario.toronto]
+Name         = "{en}Ontario"
+DivisionName = "{en}Single-Tier Municipality"
+
+[geographic.administrativeDivision.canada.quebec]
+Name         = "{fr}Québec{en}Quebec"
+DivisionName = "{fr}Province{en}Province"
+
+[geographic.administrativeDivision.canada.quebec.capitaleNationale]
+Name         = "{fr}Capitale-Nationale{en}National Capital"
+DivisionName = "{fr}Région administrative{en}Administrative region"
+
+[geographic.administrativeDivision.canada.quebec.capitaleNationale.villeDeQuebec]
+Name         = "{fr}Ville de Québec{en}Quebec City"
+DivisionName = "{fr}Communauté métropolitaine{en}Metropolitan community"
+
+[geographic.administrativeDivision.eire]
+UNSDRegion   = "372"
+Name         = "{ga}Éire{en}Ireland"
+DivisionName = "{en}Republic"
+
+[geographic.administrativeDivision.koninkrijkDerNederlanden]
+Name         = "{nl}Nederlanden{en}Netherlands"
+DivisionName = "{nl}Koninkrijk{en}Kingdom"
+
+[geographic.administrativeDivision.koninkrijkDerNederlanden.nederland]
+UNSDRegion   = "528"
+Name         = "{nl}Nederland{en}Netherlands"
+DivisionName = "{nl}Landen{en}Country"
+
+# https://en.wikipedia.org/wiki/United_States
+[geographic.administrativeDivision.unitedStates]
+UNSDRegion   = "840"
+Name         = "{en}United States of America"
+DivisionName = "{en}Country"
+
+# https://en.wikipedia.org/wiki/California
+[geographic.administrativeDivision.unitedStates.california]
+Name         = "{en}California"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Illinois
+[geographic.administrativeDivision.unitedStates.illinois]
+Name         = "{en}Illinois"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Iowa
+[geographic.administrativeDivision.unitedStates.iowa]
+Name         = "{en}Iowa"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Texas
+[geographic.administrativeDivision.unitedStates.texas]
+Name         = "{en}Texas"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Virginia
+[geographic.administrativeDivision.unitedStates.virginia]
+Name         = "{en}Virginia"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Washington_(state)
+[geographic.administrativeDivision.unitedStates.washington]
+Name         = "{en}Washington"
+DivisionName = "{en}State"
+
+# https://en.wikipedia.org/wiki/Wyoming
+[geographic.administrativeDivision.unitedStates.wyoming]
+Name         = "{en}Wyoming"
+DivisionName = "{en}State"
+

@@ -4,6 +4,8 @@ Set-StrictMode -Version Latest
 This script is an interim script for building regex patterns for TOML parsing.
 Once complete, the various elements will be moved into PowerShell modules, and
 this file will no longer be needed. Ideally it will never reach the master branch.
+
+ABNF for TOML: https://github.com/toml-lang/toml/blob/master/toml.abnf
 #>
 
 # Some utility regex functions
@@ -95,8 +97,8 @@ non-eol = %x09 / %x20-7F / non-ascii
 comment = comment-start-symbol *non-eol
 #>
 $commentStartSymbol = '\x23'
-$nonAscii = RxAlternate @('[\u0080-\uDFFF]' , '[\uE000-\uFFFF]')
-$nonEol = RxAlternate @('\x09', '[\x20-\x7F]', $nonAscii)
+$nonAscii = '[\u0080-\uDFFF\uE000-\uFFFF]'
+$nonEol = RxAlternate @('[\x09\x20-\x7F]', $nonAscii)
 $comment = $commentStartSymbol + (RxZeroOrMore $nonEol)
 
 
@@ -107,19 +109,34 @@ basic-unescaped = wschar / %x21 / %x23-5B / %x5D-7E / non-ascii
 escaped = escape escape-seq-char
 #>
 $escaped = $escape + $escapeSeqChar
-$basicUnescaped = RxAlternate @($wschar, '\x21', '[\x23-\x5B]', '[\x5D-\x7E]', $nonAscii)
+$basicUnescaped = RxAlternate @($wschar, '[\x21\x23-\x5B\x5D-\x7E]', $nonAscii)
 $basicChar = RxAlternate @($basicUnescaped, $escaped)
 
 
 
 <#
-string = ml-basic-string / basic-string / ml-literal-string / literal-string
-basic-string = quotation-mark *basic-char quotation-mark
 quotation-mark = %x22            ; "
+literal-string = apostrophe *literal-char apostrophe
+apostrophe = %x27 ; ' apostrophe
+literal-char = %x09 / %x20-26 / %x28-7E / non-ascii
 #>
+$literalChar = RxAlternate @('[\x09\x20-\x26\x28\x7E]', $nonAscii)
+$apostrophe = '\x27'
+$literalString = $apostrophe + (RxZeroOrMore $literalChar) + $apostrophe
 $quotationMark = '\x22'
-$basicString = $quotationMark + (RxZeroOrMore $basicChar) + $quotationMark
-$string = RxAlternate @($mlBasicString, $basicString, $mlLiteralString, $literalString)
+
+
+
+<#
+ml-literal-string = ml-literal-string-delim ml-literal-body ml-literal-string-delim
+ml-literal-string-delim = 3apostrophe
+ml-literal-body = *( ml-literal-char / newline )
+ml-literal-char = %x09 / %x20-7E / non-ascii
+#>
+$mlLiteralChar = RxAlternate @('\x09[\x20-\x7E]', $nonAscii)
+$mlLiteralBody = RxZeroOrMore (RxAlternate @($mlLiteralChar, $newline))
+$mlLiteralStringDelim = RxMultiple 3 $apostrophe
+$mlLiteralString = $mlLiteralStringDelim + $mlLiteralBody + $mlLiteralStringDelim
 
 
 
@@ -129,14 +146,24 @@ ml-basic-string-delim = 3quotation-mark
 ml-basic-body = *( ml-basic-char / newline / ( escape ws newline ) )
 ml-basic-char = ml-basic-unescaped / escaped
 ml-basic-unescaped = wschar / %x21-5B / %x5D-7E / non-ascii
-literal-string = apostrophe *literal-char apostrophe
-apostrophe = %x27 ; ' apostrophe
-literal-char = %x09 / %x20-26 / %x28-7E / non-ascii
-ml-literal-string = ml-literal-string-delim ml-literal-body ml-literal-string-delim
-ml-literal-string-delim = 3apostrophe
-ml-literal-body = *( ml-literal-char / newline )
-ml-literal-char = %x09 / %x20-7E / non-ascii
 #>
+$mlBasicUnescaped = RxAlternate @($wschar, '[\x21-\x5B\x5D-\x7E]', $nonAscii)
+$mlBasicChar = RxAlternate @($mlBasicUnescaped, $escaped)
+$mlBasicBody = RxZeroOrMore (RxAlternate @($mlBasicChar, $newline, ($escape + $ws + $newline) ) )
+$mlBasicStringDelim = RxMultiple 3 $quotationMark
+$mlBasicString = $mlBasicStringDelim + $mlBasicBody + $mlBasicStringDelim
+
+
+
+<#
+string = ml-basic-string / basic-string / ml-literal-string / literal-string
+basic-string = quotation-mark *basic-char quotation-mark
+#>
+$basicString = $quotationMark + (RxZeroOrMore $basicChar) + $quotationMark
+$string = RxAlternate @($mlBasicString, $basicString, $mlLiteralString, $literalString)
+
+
+
 
 
 
@@ -149,23 +176,12 @@ dotted-key = simple-key 1*( dot-sep simple-key )
 dot-sep   = ws %x2E ws  ; . Period
 #>
 $quotedKey = RxAlternate @( $basicString, $literalString )
-$unquotedKey = RxOneOrMore ( RxAlternate @( '[A-Za-z]', '[0-9]', '\x2D', '\x5F') )
+$unquotedKey = RxOneOrMore ( '[A-Za-z0-9\x2D\x5F]' )
 $simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
 $dotSep    = $ws + '\x2E' + $ws
 $dottedKey = $simpleKey + ( RxOneOrMore ($dotSep + $simpleKey) )
 $simpleKey = RxAlternate @( $quotedKey, $unquotedKey )
 $key = RxAlternate @( $simpleKey, $dottedKey )
-
-
-
-<#
-keyval = key keyval-sep val
-keyval-sep = ws %x3D ws ; =
-val = string / boolean / array / inline-table / date-time / float / integer
-#>
-$val = RxAlternate @( $string, $boolean, $array, $inlineTable, $dateTime, $float, $integer )
-$keyvalSep = $ws + '\x3D' + $ws
-$keyval = $key + $keyvalSep + $val 
 
 
 
@@ -195,6 +211,17 @@ $stdTableClose = $ws + '\x5D'
 $stdTableOpen = '\x5B' + $ws
 $stdTable = $stdTableOpen + $key + $stdTableClose
 $table = RxAlternate @($stdTable, $arrayTable)
+
+
+
+<#
+keyval = key keyval-sep val
+keyval-sep = ws %x3D ws ; =
+val = string / boolean / array / inline-table / date-time / float / integer
+#>
+$val = RxAlternate @( $string, $boolean, $array, $inlineTable, $dateTime, $float, $integer )
+$keyvalSep = $ws + '\x3D' + $ws
+$keyval = $key + $keyvalSep + $val 
 
 
 
